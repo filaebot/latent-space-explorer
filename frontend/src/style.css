@@ -365,6 +365,60 @@ button:hover {
 }
 
 /* ---------------------------------------------------------------------------
+   Progress Overlay
+   --------------------------------------------------------------------------- */
+
+#progress-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(10, 10, 15, 0.82);
+  backdrop-filter: blur(4px);
+  align-items: center;
+  justify-content: center;
+}
+
+#progress-overlay.visible {
+  display: flex;
+}
+
+#progress-box {
+  text-align: center;
+  width: 340px;
+}
+
+#progress-message {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  margin-bottom: 12px;
+}
+
+#progress-bar-track {
+  height: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-amber);
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+
+#progress-percent {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  margin-top: 6px;
+}
+
+/* ---------------------------------------------------------------------------
    Scrollbar
    --------------------------------------------------------------------------- */
 

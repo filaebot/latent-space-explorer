@@ -9,6 +9,7 @@ In production, also serves the frontend static files.
 
 from __future__ import annotations
 
+import json
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -44,6 +45,9 @@ logger = logging.getLogger(__name__)
 
 # Frontend dist directory (built by Vite)
 FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
+
+# Data directory with word lists
+DATA_DIR = Path(__file__).parent.parent / "data"
 
 # Global model instance, initialised during the lifespan startup event.
 latent_model = LatentModel(config.model)
@@ -193,6 +197,16 @@ async def reduce(req: ReduceRequest) -> ReduceResponse:
         method=req.method,
         n_components=req.n_components,
     )
+
+
+@api.get("/words")
+async def words():
+    """Return the curated word list from data/words.json."""
+    words_path = DATA_DIR / "words.json"
+    if not words_path.exists():
+        raise HTTPException(status_code=404, detail="words.json not found")
+    with open(words_path) as f:
+        return json.load(f)
 
 
 @api.get("/health", response_model=HealthResponse)

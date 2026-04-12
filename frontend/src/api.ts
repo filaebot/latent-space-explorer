@@ -81,6 +81,36 @@ export async function attention(text: string): Promise<AttentionResponse> {
 }
 
 // ---------------------------------------------------------------------------
+// Word list
+// ---------------------------------------------------------------------------
+
+interface WordListCategory {
+  name: string;
+  description: string;
+  items: string[];
+}
+
+interface WordListResponse {
+  categories: WordListCategory[];
+}
+
+/** Fetch the curated word list from the server. */
+export async function fetchWordList(): Promise<{ word: string; category: string }[] | null> {
+  try {
+    const data = await get<WordListResponse>("/words");
+    const words: { word: string; category: string }[] = [];
+    for (const cat of data.categories) {
+      for (const item of cat.items) {
+        words.push({ word: item, category: cat.name });
+      }
+    }
+    return words;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Mock data generation
 // ---------------------------------------------------------------------------
 
@@ -191,33 +221,63 @@ export function findNeighbors(
 // Load dataset: try backend, fall back to mock
 // ---------------------------------------------------------------------------
 
+export type ProgressCallback = (percent: number, message: string) => void;
+
+const BATCH_SIZE = 50;
+
 export async function loadDataset(
   method: ReductionMethod,
+  onProgress?: ProgressCallback,
 ): Promise<{ dataset: DataSet; mock: boolean }> {
   const health = await checkHealth();
 
   if (health && health.model_loaded) {
     try {
-      // Collect all words from mock categories as our word list
-      const allWords: { word: string; category: string }[] = [];
-      for (const [cat, ws] of Object.entries(MOCK_CATEGORIES)) {
-        for (const w of ws) {
-          allWords.push({ word: w, category: cat });
+      // Fetch the curated word list; fall back to MOCK_CATEGORIES
+      onProgress?.(0, "Fetching word list...");
+      const fetched = await fetchWordList();
+      let allWords: { word: string; category: string }[];
+
+      if (fetched && fetched.length > 0) {
+        allWords = fetched;
+      } else {
+        allWords = [];
+        for (const [cat, ws] of Object.entries(MOCK_CATEGORIES)) {
+          for (const w of ws) {
+            allWords.push({ word: w, category: cat });
+          }
         }
       }
-      const texts = allWords.map((w) => w.word);
 
-      const embRes = await batchEmbed(texts);
+      const totalWords = allWords.length;
+
+      // Batch embed with progress
+      const allEmbeddings: number[][] = [];
+      for (let i = 0; i < totalWords; i += BATCH_SIZE) {
+        const batch = allWords.slice(i, i + BATCH_SIZE);
+        const batchTexts = batch.map((w) => w.word);
+        const embRes = await batchEmbed(batchTexts);
+        allEmbeddings.push(...embRes.embeddings);
+
+        const done = Math.min(i + BATCH_SIZE, totalWords);
+        const percent = (done / totalWords) * 90; // reserve 10% for reduction
+        onProgress?.(percent, `Embedding words... ${done}/${totalWords}`);
+      }
+
+      // Reduce
+      onProgress?.(90, "Reducing dimensions...");
       const redRes = await reduce({
-        vectors: embRes.embeddings,
+        vectors: allEmbeddings,
         method,
         n_components: 3,
       });
 
+      onProgress?.(100, "Done");
+
       const points: WordPoint[] = allWords.map((w, i) => ({
         word: w.word,
         category: w.category,
-        embedding: embRes.embeddings[i],
+        embedding: allEmbeddings[i],
         position: redRes.coordinates[i] as [number, number, number],
       }));
 

@@ -9,6 +9,8 @@ import {
   showHoverLabel,
   hideHoverLabel,
   setSeedValue,
+  showProgress,
+  hideProgress,
 } from "./ui";
 import { loadDataset, findNeighbors } from "./api";
 import type { AppState } from "./types";
@@ -86,7 +88,10 @@ async function main(): Promise<void> {
     onReduction: async (method) => {
       state.reductionMethod = method;
       setStatus(`Switching to ${method.toUpperCase()}...`);
-      const { dataset, mock } = await loadDataset(method);
+      const { dataset, mock } = await loadDataset(method, (pct, msg) => {
+        showProgress(pct, msg);
+      });
+      hideProgress();
       state.dataset = dataset;
       state.usingMockData = mock;
       scatter.setPoints(dataset.points, dataset.categories);
@@ -162,7 +167,10 @@ async function main(): Promise<void> {
   // -----------------------------------------------------------------------
 
   setStatus("Loading dataset...");
-  const { dataset, mock } = await loadDataset(state.reductionMethod);
+  const { dataset, mock } = await loadDataset(state.reductionMethod, (pct, msg) => {
+    showProgress(pct, msg);
+  });
+  hideProgress();
   state.dataset = dataset;
   state.usingMockData = mock;
 

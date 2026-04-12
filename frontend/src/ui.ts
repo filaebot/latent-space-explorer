@@ -14,6 +14,10 @@ let infoContent: HTMLElement;
 let statusText: HTMLElement;
 let pointCountEl: HTMLElement;
 let hoverLabel: HTMLElement;
+let progressOverlay: HTMLElement;
+let progressMessage: HTMLElement;
+let progressBarFill: HTMLElement;
+let progressPercent: HTMLElement;
 
 // ---------------------------------------------------------------------------
 // Callbacks set by main.ts
@@ -66,6 +70,10 @@ export function initUI(callbacks: {
   statusText = document.getElementById("status-text")!;
   pointCountEl = document.getElementById("point-count")!;
   hoverLabel = document.getElementById("hover-label")!;
+  progressOverlay = document.getElementById("progress-overlay")!;
+  progressMessage = document.getElementById("progress-message")!;
+  progressBarFill = document.getElementById("progress-bar-fill")!;
+  progressPercent = document.getElementById("progress-percent")!;
 
   // Seed input
   seedGo.addEventListener("click", () => {
@@ -221,6 +229,17 @@ export function hideHoverLabel(): void {
 
 export function setSeedValue(word: string): void {
   seedInput.value = word;
+}
+
+export function showProgress(percent: number, message: string): void {
+  progressOverlay.classList.add("visible");
+  progressMessage.textContent = message;
+  progressBarFill.style.width = `${Math.round(percent)}%`;
+  progressPercent.textContent = `${Math.round(percent)}%`;
+}
+
+export function hideProgress(): void {
+  progressOverlay.classList.remove("visible");
 }
 
 // ---------------------------------------------------------------------------
