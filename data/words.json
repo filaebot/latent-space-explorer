@@ -1,0 +1,232 @@
+{
+  "categories": [
+    {
+      "name": "Classic Analogies",
+      "description": "Traditional analogy pairs for testing vector arithmetic",
+      "items": [
+        "king", "queen", "man", "woman", "prince", "princess",
+        "uncle", "aunt", "nephew", "niece", "husband", "wife",
+        "France", "Paris", "Japan", "Tokyo", "Germany", "Berlin",
+        "Italy", "Rome", "Spain", "Madrid", "Egypt", "Cairo",
+        "China", "Beijing", "Brazil", "Brasilia",
+        "big", "bigger", "biggest", "small", "smaller", "smallest",
+        "good", "better", "best", "bad", "worse", "worst"
+      ]
+    },
+    {
+      "name": "Polysemous Words with Disambiguating Phrases",
+      "description": "Words with multiple meanings paired with context phrases",
+      "items": [
+        "bank", "bank account", "river bank", "bank robber",
+        "crane", "crane operator", "sandhill crane", "tower crane",
+        "bat", "baseball bat", "vampire bat", "bat signal",
+        "bass", "bass guitar", "bass fish", "bass note",
+        "pitch", "pitch a tent", "pitch black", "baseball pitch", "musical pitch",
+        "bark", "tree bark", "dog bark",
+        "spring", "spring water", "spring season", "metal spring",
+        "match", "tennis match", "strike a match", "perfect match",
+        "nail", "fingernail", "nail the landing", "hammer and nail",
+        "pound", "British pound", "pound of flesh", "dog pound",
+        "seal", "navy seal", "wax seal", "harbor seal",
+        "jam", "traffic jam", "strawberry jam", "jam session",
+        "fly", "house fly", "fly a kite", "fly fishing",
+        "letter", "love letter", "letter of the alphabet"
+      ]
+    },
+    {
+      "name": "Abstract Concepts at Different Granularities",
+      "description": "Related abstract concepts varying in specificity and nuance",
+      "items": [
+        "justice", "fairness", "equality", "equity",
+        "freedom", "liberty", "autonomy", "independence",
+        "love", "affection", "attachment", "devotion",
+        "fear", "anxiety", "dread", "terror",
+        "wisdom", "knowledge", "understanding", "insight",
+        "truth", "honesty", "sincerity", "authenticity",
+        "power", "authority", "influence", "dominance",
+        "beauty", "elegance", "grace", "charm",
+        "chaos", "disorder", "entropy", "anarchy",
+        "hope", "optimism", "aspiration", "yearning"
+      ]
+    },
+    {
+      "name": "Concrete Objects with Functional vs Categorical Similarity",
+      "description": "Objects that share shape, function, or category in non-obvious ways",
+      "items": [
+        "knife", "sword", "fork", "spoon", "chopsticks",
+        "car", "bus", "skateboard", "bicycle", "motorcycle",
+        "piano", "guitar", "violin", "drum", "flute",
+        "desk", "table", "bench", "shelf", "cabinet",
+        "hammer", "screwdriver", "wrench", "pliers",
+        "pen", "pencil", "crayon", "paintbrush", "marker",
+        "cup", "bowl", "plate", "mug", "glass",
+        "sofa", "chair", "stool", "throne",
+        "candle", "lamp", "flashlight", "lantern"
+      ]
+    },
+    {
+      "name": "Compositional Phrases",
+      "description": "Idioms and compound meanings vs their literal components",
+      "items": [
+        "hot dog", "dog",
+        "red herring", "red", "herring",
+        "kick the bucket", "kick", "bucket",
+        "break the ice", "break", "ice",
+        "blue sky", "blue", "sky",
+        "dark horse", "dark", "horse",
+        "cold shoulder", "shoulder",
+        "black market", "market",
+        "green thumb", "green", "thumb",
+        "dead end", "dead", "end",
+        "sweet tooth", "sweet", "tooth",
+        "loose cannon", "loose", "cannon",
+        "silver lining", "silver", "lining",
+        "wild card", "wild", "card",
+        "iron curtain", "iron", "curtain",
+        "white elephant", "white", "elephant"
+      ]
+    },
+    {
+      "name": "Semantic Gradients",
+      "description": "Words ordered along intensity or degree scales",
+      "items": [
+        "freezing", "cold", "cool", "lukewarm", "warm", "hot", "boiling", "scorching",
+        "whisper", "murmur", "speak", "shout", "scream", "shriek",
+        "crawl", "walk", "jog", "run", "sprint", "dash",
+        "tiny", "little", "medium", "large", "huge", "enormous", "colossal",
+        "loathe", "dislike", "tolerate", "like", "enjoy", "adore", "worship",
+        "starving", "hungry", "peckish", "satisfied", "full", "stuffed",
+        "glance", "look", "stare", "gaze", "gawk",
+        "drizzle", "rain", "downpour", "deluge",
+        "tap", "knock", "bang", "slam", "crash"
+      ]
+    },
+    {
+      "name": "Technical vs Everyday Meaning",
+      "description": "Words with distinct meanings in technical and everyday contexts",
+      "items": [
+        "python", "python snake", "python programming",
+        "bug", "software bug", "insect bug",
+        "cloud", "rain cloud", "cloud computing",
+        "cell", "prison cell", "biological cell", "cell phone",
+        "mouse", "computer mouse", "field mouse",
+        "window", "glass window", "browser window",
+        "shell", "seashell", "command shell",
+        "branch", "tree branch", "git branch",
+        "root", "plant root", "root access",
+        "kernel", "corn kernel", "operating system kernel",
+        "thread", "sewing thread", "thread of execution",
+        "cookie", "chocolate chip cookie", "browser cookie",
+        "port", "shipping port", "network port",
+        "patch", "eye patch", "software patch",
+        "virus", "computer virus", "flu virus",
+        "tablet", "stone tablet", "tablet computer"
+      ]
+    },
+    {
+      "name": "Emotional Spectrum",
+      "description": "Emotions arranged along affective dimensions",
+      "items": [
+        "ecstatic", "joyful", "content", "neutral", "sad", "miserable", "despairing",
+        "calm", "nervous", "anxious", "panicked", "terrified",
+        "furious", "angry", "annoyed", "irritated", "indifferent",
+        "proud", "confident", "embarrassed", "ashamed", "humiliated",
+        "amused", "bored", "apathetic",
+        "grateful", "resentful", "envious", "jealous",
+        "lonely", "nostalgic", "melancholy"
+      ]
+    },
+    {
+      "name": "Relationships and Roles",
+      "description": "Social roles and their relational counterparts",
+      "items": [
+        "parent", "mother", "father",
+        "child", "son", "daughter",
+        "teacher", "student", "professor",
+        "doctor", "patient", "nurse", "surgeon",
+        "boss", "employee", "manager", "intern",
+        "mentor", "apprentice",
+        "landlord", "tenant",
+        "judge", "defendant", "lawyer", "plaintiff",
+        "captain", "soldier", "general",
+        "chef", "waiter",
+        "author", "reader", "editor", "publisher",
+        "monarch", "subject", "citizen",
+        "coach", "athlete",
+        "priest", "congregation"
+      ]
+    },
+    {
+      "name": "Surprising Neighbors",
+      "description": "Words expected to be far apart but that may cluster in embedding space",
+      "items": [
+        "democracy", "marketplace",
+        "contagion", "meme",
+        "gravity", "debt",
+        "orbit", "habit",
+        "infection", "rumor",
+        "parasite", "tapeworm",
+        "predator", "salesman",
+        "migration", "data transfer",
+        "evolution", "software update",
+        "immune system", "firewall",
+        "echo chamber", "monastery",
+        "addiction", "subscription",
+        "colony", "franchise",
+        "extinction", "bankruptcy",
+        "metamorphosis", "rebranding",
+        "photosynthesis", "solar panel",
+        "hibernation", "sabbatical",
+        "camouflage", "encryption",
+        "erosion", "inflation",
+        "symbiosis", "partnership",
+        "avalanche", "stock market crash"
+      ]
+    },
+    {
+      "name": "Negation Pairs",
+      "description": "Words and their negated or opposing forms",
+      "items": [
+        "happy", "unhappy",
+        "possible", "impossible",
+        "trust", "distrust",
+        "visible", "invisible",
+        "rational", "irrational",
+        "mortal", "immortal",
+        "perfect", "imperfect",
+        "regular", "irregular",
+        "fortunate", "unfortunate",
+        "legal", "illegal",
+        "complete", "incomplete",
+        "capable", "incapable",
+        "sane", "insane",
+        "agree", "disagree",
+        "obey", "disobey",
+        "appear", "disappear",
+        "connect", "disconnect"
+      ]
+    },
+    {
+      "name": "Cross-lingual Cognates",
+      "description": "English words borrowed from or shared with other languages",
+      "items": [
+        "kindergarten", "cafe", "tsunami", "karate",
+        "pizza", "safari", "ballet", "yoga",
+        "algebra", "algorithm", "sushi", "karma",
+        "chocolate", "tornado", "mosquito", "guerrilla",
+        "avatar", "nirvana", "guru", "jungle"
+      ]
+    },
+    {
+      "name": "Numbers and Quantities",
+      "description": "Numeric words and quantifiers for testing ordinal/cardinal structure",
+      "items": [
+        "zero", "one", "two", "three", "four", "five",
+        "six", "seven", "eight", "nine", "ten",
+        "hundred", "thousand", "million", "billion",
+        "few", "many", "some", "all", "none",
+        "dozen", "pair", "triple", "half", "quarter"
+      ]
+    }
+  ]
+}
