@@ -123,6 +123,168 @@ button:hover {
 }
 
 /* ---------------------------------------------------------------------------
+   Mode Toggle
+   --------------------------------------------------------------------------- */
+
+.mode-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all 0.15s;
+}
+
+.mode-btn:first-of-type {
+  border-radius: 4px 0 0 4px;
+}
+
+.mode-btn:last-of-type {
+  border-radius: 0 4px 4px 0;
+  border-left: none;
+}
+
+.mode-btn.active {
+  background: var(--accent-amber-dim);
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+
+.mode-btn:hover:not(.active) {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+/* ---------------------------------------------------------------------------
+   Layer Controls (below toolbar, visible only in layers mode)
+   --------------------------------------------------------------------------- */
+
+#layer-controls {
+  display: none;
+  position: fixed;
+  top: 56px;
+  left: 12px;
+  right: 12px;
+  z-index: 10;
+  padding: 8px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(8px);
+  flex-direction: column;
+  gap: 6px;
+}
+
+#layer-controls.visible {
+  display: flex;
+}
+
+.layer-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#layer-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent-amber);
+  min-width: 160px;
+  white-space: nowrap;
+}
+
+#layer-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+#layer-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-amber);
+  border: 2px solid var(--bg-panel);
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+#layer-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-amber);
+  border: 2px solid var(--bg-panel);
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+#layer-play {
+  min-width: 56px;
+  font-size: 11px;
+  padding: 3px 10px;
+}
+
+.layer-speed-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#layer-speed {
+  width: 80px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+#layer-speed::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-teal);
+  border: 1px solid var(--bg-panel);
+  cursor: pointer;
+}
+
+#layer-speed::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-teal);
+  border: 1px solid var(--bg-panel);
+  cursor: pointer;
+}
+
+#layer-speed-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-teal);
+  min-width: 28px;
+}
+
+/* ---------------------------------------------------------------------------
    Axes Panel (left side)
    --------------------------------------------------------------------------- */
 
@@ -437,4 +599,13 @@ button:hover {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #3a3a4a;
+}
+
+/* ---------------------------------------------------------------------------
+   Layers mode: shift side panels down to accommodate layer controls bar
+   --------------------------------------------------------------------------- */
+
+body.layers-mode #axes-panel,
+body.layers-mode #category-panel {
+  top: 108px;
 }

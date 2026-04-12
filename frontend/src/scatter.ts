@@ -47,6 +47,12 @@ export interface ScatterPlot {
   /** Map category -> hex color. */
   categoryColor(category: string): number;
 
+  /** Smoothly animate point positions to new targets over duration ms. */
+  animateToPositions(
+    targets: [number, number, number][],
+    duration: number,
+  ): Promise<void>;
+
   /** Dispose Three.js objects. */
   dispose(): void;
 }
@@ -223,6 +229,64 @@ export function createScatterPlot(ctx: SceneContext): ScatterPlot {
     return null;
   }
 
+  let animationId: number | null = null;
+
+  function animateToPositions(
+    targets: [number, number, number][],
+    duration: number,
+  ): Promise<void> {
+    // Cancel any in-progress animation
+    if (animationId !== null) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
+
+    if (!pointsMesh || currentPoints.length === 0) return Promise.resolve();
+
+    const posAttr = geometry.getAttribute("position") as THREE.BufferAttribute;
+    const count = currentPoints.length;
+
+    // Snapshot current positions as starting state
+    const startPositions = new Float32Array(count * 3);
+    for (let i = 0; i < count * 3; i++) {
+      startPositions[i] = posAttr.array[i];
+    }
+
+    const startTime = performance.now();
+
+    return new Promise<void>((resolve) => {
+      function step() {
+        const elapsed = performance.now() - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        // Smooth ease-out
+        const ease = 1 - (1 - t) * (1 - t);
+
+        for (let i = 0; i < count; i++) {
+          const target = targets[i];
+          if (!target) continue;
+
+          const x = startPositions[i * 3] + (target[0] - startPositions[i * 3]) * ease;
+          const y = startPositions[i * 3 + 1] + (target[1] - startPositions[i * 3 + 1]) * ease;
+          const z = startPositions[i * 3 + 2] + (target[2] - startPositions[i * 3 + 2]) * ease;
+
+          posAttr.setXYZ(i, x, y, z);
+
+          // Keep the logical positions in sync so raycasting works
+          currentPoints[i].position = [x, y, z];
+        }
+        posAttr.needsUpdate = true;
+
+        if (t < 1) {
+          animationId = requestAnimationFrame(step);
+        } else {
+          animationId = null;
+          resolve();
+        }
+      }
+      animationId = requestAnimationFrame(step);
+    });
+  }
+
   function dispose(): void {
     if (pointsMesh) {
       ctx.scene.remove(pointsMesh);
@@ -244,6 +308,7 @@ export function createScatterPlot(ctx: SceneContext): ScatterPlot {
     selectPoint,
     raycast,
     categoryColor,
+    animateToPositions,
     dispose,
   };
 }

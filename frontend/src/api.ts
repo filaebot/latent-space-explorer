@@ -9,6 +9,7 @@ import type {
   ReductionMethod,
   WordPoint,
   DataSet,
+  LayerData,
 } from "./types";
 
 const API_BASE = "/api";
@@ -215,6 +216,33 @@ export function findNeighbors(
     .map((p) => ({ point: p, distance: dist3(target.position, p.position) }))
     .sort((a, b) => a.distance - b.distance)
     .slice(0, k);
+}
+
+// ---------------------------------------------------------------------------
+// Pre-computed layer data (static file)
+// ---------------------------------------------------------------------------
+
+let _layerData: LayerData | null = null;
+
+export async function fetchLayerData(): Promise<LayerData | null> {
+  if (_layerData) return _layerData;
+
+  try {
+    const res = await fetch("/layers.json");
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as LayerData;
+
+    if (!data.words || !data.layers || !data.num_layers) {
+      console.warn("Layer data file is malformed");
+      return null;
+    }
+
+    _layerData = data;
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

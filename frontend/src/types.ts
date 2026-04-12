@@ -95,4 +95,28 @@ export interface AppState {
   axes: (SemanticAxis | null)[];
   hiddenCategories: Set<string>;
   usingMockData: boolean;
+  mode: "embeddings" | "layers";
+  currentLayer: number;
+  layerData: LayerData | null;
+  isPlaying: boolean;
+  playSpeed: number;
+}
+
+// ---------------------------------------------------------------------------
+// Layer analysis data (loaded from layers.json)
+// ---------------------------------------------------------------------------
+
+export interface LayerReduction {
+  umap: [number, number, number][];
+  pca: [number, number, number][];
+}
+
+export interface LayerData {
+  words: string[];
+  categories: Record<string, string>;
+  num_layers: number;
+  hidden_dim: number;
+  layers: Record<string, LayerReduction>;
+  model: string;
+  generated_at: string;
 }

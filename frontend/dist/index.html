@@ -4,13 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Latent Space Explorer</title>
-    <script type="module" crossorigin src="/assets/index-CkJIYUAa.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-ffHX682M.css">
+    <script type="module" crossorigin src="/assets/index-CV4LWyoV.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-TK3XqTHz.css">
   </head>
   <body>
     <div id="canvas-container"></div>
 
     <div id="toolbar">
+      <div class="toolbar-group mode-toggle">
+        <label>Mode</label>
+        <button id="mode-embeddings" class="mode-btn active">Embeddings</button>
+        <button id="mode-layers" class="mode-btn">Layers</button>
+      </div>
+
       <div class="toolbar-group">
         <label for="seed-input">Seed</label>
         <input id="seed-input" type="text" placeholder="Type a word..." />
@@ -33,6 +39,21 @@
       <div class="toolbar-group">
         <label>Neighbors</label>
         <input id="neighbor-count" type="number" value="10" min="1" max="50" />
+      </div>
+    </div>
+
+    <div id="layer-controls">
+      <div class="layer-controls-row">
+        <span id="layer-label">Layer 0 (Embedding)</span>
+        <input id="layer-slider" type="range" min="0" max="36" value="0" />
+      </div>
+      <div class="layer-controls-row">
+        <button id="layer-play">Play</button>
+        <label class="layer-speed-group">
+          Speed
+          <input id="layer-speed" type="range" min="0.5" max="5" step="0.5" value="1" />
+          <span id="layer-speed-label">1.0x</span>
+        </label>
       </div>
     </div>
 

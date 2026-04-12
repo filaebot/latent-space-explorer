@@ -18,6 +18,14 @@ let progressOverlay: HTMLElement;
 let progressMessage: HTMLElement;
 let progressBarFill: HTMLElement;
 let progressPercent: HTMLElement;
+let modeEmbeddingsBtn: HTMLButtonElement;
+let modeLayersBtn: HTMLButtonElement;
+let layerControls: HTMLElement;
+let layerSlider: HTMLInputElement;
+let layerLabel: HTMLElement;
+let layerPlayBtn: HTMLButtonElement;
+let layerSpeedSlider: HTMLInputElement;
+let layerSpeedLabel: HTMLElement;
 
 // ---------------------------------------------------------------------------
 // Callbacks set by main.ts
@@ -30,6 +38,10 @@ type NeighborCountCallback = (n: number) => void;
 type CategoryToggleCallback = (category: string, visible: boolean) => void;
 type AxisCallback = (axisIndex: number, poleA: string, poleB: string) => void;
 type AxesResetCallback = () => void;
+type ModeCallback = (mode: "embeddings" | "layers") => void;
+type LayerChangeCallback = (layer: number) => void;
+type PlayToggleCallback = () => void;
+type SpeedChangeCallback = (speed: number) => void;
 
 let onSeed: SeedCallback = () => {};
 let onSearch: SearchCallback = () => {};
@@ -38,6 +50,10 @@ let onNeighborCount: NeighborCountCallback = () => {};
 let onCategoryToggle: CategoryToggleCallback = () => {};
 let onAxisSet: AxisCallback = () => {};
 let onAxesReset: AxesResetCallback = () => {};
+let onModeChange: ModeCallback = () => {};
+let onLayerChange: LayerChangeCallback = () => {};
+let onPlayToggle: PlayToggleCallback = () => {};
+let onSpeedChange: SpeedChangeCallback = () => {};
 
 // ---------------------------------------------------------------------------
 // Init
@@ -51,6 +67,10 @@ export function initUI(callbacks: {
   onCategoryToggle: CategoryToggleCallback;
   onAxisSet: AxisCallback;
   onAxesReset: AxesResetCallback;
+  onModeChange: ModeCallback;
+  onLayerChange: LayerChangeCallback;
+  onPlayToggle: PlayToggleCallback;
+  onSpeedChange: SpeedChangeCallback;
 }): void {
   onSeed = callbacks.onSeed;
   onSearch = callbacks.onSearch;
@@ -59,6 +79,10 @@ export function initUI(callbacks: {
   onCategoryToggle = callbacks.onCategoryToggle;
   onAxisSet = callbacks.onAxisSet;
   onAxesReset = callbacks.onAxesReset;
+  onModeChange = callbacks.onModeChange;
+  onLayerChange = callbacks.onLayerChange;
+  onPlayToggle = callbacks.onPlayToggle;
+  onSpeedChange = callbacks.onSpeedChange;
 
   seedInput = document.getElementById("seed-input") as HTMLInputElement;
   seedGo = document.getElementById("seed-go") as HTMLButtonElement;
@@ -74,6 +98,14 @@ export function initUI(callbacks: {
   progressMessage = document.getElementById("progress-message")!;
   progressBarFill = document.getElementById("progress-bar-fill")!;
   progressPercent = document.getElementById("progress-percent")!;
+  modeEmbeddingsBtn = document.getElementById("mode-embeddings") as HTMLButtonElement;
+  modeLayersBtn = document.getElementById("mode-layers") as HTMLButtonElement;
+  layerControls = document.getElementById("layer-controls")!;
+  layerSlider = document.getElementById("layer-slider") as HTMLInputElement;
+  layerLabel = document.getElementById("layer-label")!;
+  layerPlayBtn = document.getElementById("layer-play") as HTMLButtonElement;
+  layerSpeedSlider = document.getElementById("layer-speed") as HTMLInputElement;
+  layerSpeedLabel = document.getElementById("layer-speed-label")!;
 
   // Seed input
   seedGo.addEventListener("click", () => {
@@ -118,6 +150,25 @@ export function initUI(callbacks: {
 
   document.getElementById("axes-reset")!.addEventListener("click", () => {
     onAxesReset();
+  });
+
+  // Mode toggle
+  modeEmbeddingsBtn.addEventListener("click", () => onModeChange("embeddings"));
+  modeLayersBtn.addEventListener("click", () => onModeChange("layers"));
+
+  // Layer slider
+  layerSlider.addEventListener("input", () => {
+    onLayerChange(parseInt(layerSlider.value, 10));
+  });
+
+  // Play/pause
+  layerPlayBtn.addEventListener("click", () => onPlayToggle());
+
+  // Speed slider
+  layerSpeedSlider.addEventListener("input", () => {
+    const speed = parseFloat(layerSpeedSlider.value);
+    layerSpeedLabel.textContent = `${speed.toFixed(1)}x`;
+    onSpeedChange(speed);
   });
 }
 
@@ -240,6 +291,48 @@ export function showProgress(percent: number, message: string): void {
 
 export function hideProgress(): void {
   progressOverlay.classList.remove("visible");
+}
+
+// ---------------------------------------------------------------------------
+// Layer mode UI
+// ---------------------------------------------------------------------------
+
+export function setMode(mode: "embeddings" | "layers"): void {
+  if (mode === "embeddings") {
+    modeEmbeddingsBtn.classList.add("active");
+    modeLayersBtn.classList.remove("active");
+    layerControls.classList.remove("visible");
+    document.body.classList.remove("layers-mode");
+  } else {
+    modeEmbeddingsBtn.classList.remove("active");
+    modeLayersBtn.classList.add("active");
+    layerControls.classList.add("visible");
+    document.body.classList.add("layers-mode");
+  }
+}
+
+export function setLayerSliderMax(max: number): void {
+  layerSlider.max = String(max);
+}
+
+export function setLayerSliderValue(value: number): void {
+  layerSlider.value = String(value);
+}
+
+export function setLayerLabel(layer: number, numLayers: number): void {
+  let desc: string;
+  if (layer === 0) {
+    desc = `Layer 0 (Embedding)`;
+  } else if (layer === numLayers - 1) {
+    desc = `Layer ${layer} (Output)`;
+  } else {
+    desc = `Layer ${layer}`;
+  }
+  layerLabel.textContent = desc;
+}
+
+export function setPlayButton(isPlaying: boolean): void {
+  layerPlayBtn.textContent = isPlaying ? "Pause" : "Play";
 }
 
 // ---------------------------------------------------------------------------
