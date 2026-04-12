@@ -15,9 +15,20 @@ from typing import Optional
 
 import numpy as np
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from config import ModelConfig
+
+_has_cuda = torch.cuda.is_available()
+
+# bitsandbytes is CUDA-only; import conditionally
+BitsAndBytesConfig = None
+if _has_cuda:
+    try:
+        from transformers import BitsAndBytesConfig as _BnBConfig
+        BitsAndBytesConfig = _BnBConfig
+    except ImportError:
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +57,9 @@ class LatentModel:
         }
         torch_dtype = dtype_map.get(self.cfg.dtype, torch.bfloat16)
 
-        # Optional 4-bit quantization via bitsandbytes
+        # Optional 4-bit quantization via bitsandbytes (CUDA only)
         quantization_config = None
-        if self.cfg.quantize_4bit:
+        if self.cfg.quantize_4bit and BitsAndBytesConfig is not None:
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch_dtype,
@@ -56,6 +67,11 @@ class LatentModel:
                 bnb_4bit_use_double_quant=True,
             )
             logger.info("4-bit quantization enabled (nf4, double quant)")
+        elif self.cfg.quantize_4bit:
+            logger.warning(
+                "4-bit quantization requested but bitsandbytes is not available "
+                "(requires CUDA). Loading without quantization."
+            )
 
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.cfg.model_name,
@@ -66,14 +82,29 @@ class LatentModel:
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        self.model = AutoModelForCausalLM.from_pretrained(
-            self.cfg.model_name,
-            cache_dir=self.cfg.cache_dir,
-            device_map=self.cfg.device_map,
-            torch_dtype=torch_dtype,
-            quantization_config=quantization_config,
-            trust_remote_code=True,
-        )
+        use_mps = self.cfg.device_map == "mps"
+
+        # On MPS (Apple Silicon), load to CPU first then move to MPS.
+        # device_map="auto" requires accelerate and is designed for CUDA.
+        if use_mps:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.cfg.model_name,
+                cache_dir=self.cfg.cache_dir,
+                dtype=torch_dtype,
+                trust_remote_code=True,
+            )
+            self.model = self.model.to("mps")
+            logger.info("Model moved to MPS (Apple Silicon)")
+        else:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.cfg.model_name,
+                cache_dir=self.cfg.cache_dir,
+                device_map=self.cfg.device_map,
+                dtype=torch_dtype,
+                quantization_config=quantization_config,
+                trust_remote_code=True,
+            )
+
         self.model.eval()
         self._loaded = True
         logger.info("Model loaded successfully on %s", self.cfg.device_map)

@@ -3,17 +3,22 @@ FastAPI server for the Latent Space Explorer.
 
 Exposes endpoints for embedding extraction, layer introspection,
 attention visualization, and dimensionality reduction.
+
+In production, also serves the frontend static files.
 """
 
 from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import numpy as np
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import FileResponse
 
 from config import config
 from model import LatentModel
@@ -36,6 +41,9 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Frontend dist directory (built by Vite)
+FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
 
 # Global model instance, initialised during the lifespan startup event.
 latent_model = LatentModel(config.model)
@@ -64,6 +72,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# API router — mount all API endpoints under /api
+from fastapi import APIRouter
+api = APIRouter(prefix="/api")
+
 
 # -----------------------------------------------------------------------
 # Helpers
@@ -85,7 +97,7 @@ def _normalise_texts(text: str | list[str]) -> list[str]:
 # Endpoints
 # -----------------------------------------------------------------------
 
-@app.post("/embed", response_model=EmbedResponse)
+@api.post("/embed", response_model=EmbedResponse)
 async def embed(req: EmbedRequest) -> EmbedResponse:
     """Embed one or more words/phrases using the last hidden state."""
     _ensure_loaded()
@@ -97,7 +109,7 @@ async def embed(req: EmbedRequest) -> EmbedResponse:
     )
 
 
-@app.post("/embed/batch", response_model=EmbedResponse)
+@api.post("/batch_embed", response_model=EmbedResponse)
 async def embed_batch(req: BatchEmbedRequest) -> EmbedResponse:
     """Batch-embed a list of words/phrases."""
     _ensure_loaded()
@@ -108,7 +120,7 @@ async def embed_batch(req: BatchEmbedRequest) -> EmbedResponse:
     )
 
 
-@app.post("/layers", response_model=LayersResponse)
+@api.post("/layers", response_model=LayersResponse)
 async def layers(req: LayersRequest) -> LayersResponse:
     """Return hidden states from every layer for a single input."""
     _ensure_loaded()
@@ -120,7 +132,7 @@ async def layers(req: LayersRequest) -> LayersResponse:
     )
 
 
-@app.post("/attention", response_model=AttentionResponse)
+@api.post("/attention", response_model=AttentionResponse)
 async def attention(req: AttentionRequest) -> AttentionResponse:
     """Return attention weights from all layers for a single input."""
     _ensure_loaded()
@@ -135,7 +147,7 @@ async def attention(req: AttentionRequest) -> AttentionResponse:
     )
 
 
-@app.post("/reduce", response_model=ReduceResponse)
+@api.post("/reduce", response_model=ReduceResponse)
 async def reduce(req: ReduceRequest) -> ReduceResponse:
     """Reduce high-dimensional vectors to 2D or 3D via UMAP or PCA."""
     vectors = np.array(req.vectors, dtype=np.float32)
@@ -169,13 +181,34 @@ async def reduce(req: ReduceRequest) -> ReduceResponse:
     )
 
 
-@app.get("/health", response_model=HealthResponse)
+@api.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     return HealthResponse(
         status="ok",
         model_name=config.model.model_name,
         model_loaded=latent_model.is_loaded,
     )
+
+
+# Include the API router
+app.include_router(api)
+
+# Serve frontend static files (must be after API routes)
+if FRONTEND_DIST.exists():
+    # Serve assets directory
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
+
+    # Catch-all: serve index.html for any non-API, non-asset route (SPA fallback)
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Try to serve the exact file first
+        file_path = FRONTEND_DIST / full_path
+        if full_path and file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        # Fall back to index.html
+        return FileResponse(FRONTEND_DIST / "index.html")
+else:
+    logger.warning("Frontend dist not found at %s — run 'npm run build' in frontend/", FRONTEND_DIST)
 
 
 if __name__ == "__main__":

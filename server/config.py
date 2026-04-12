@@ -7,6 +7,26 @@ All settings can be overridden via environment variables prefixed with LSE_.
 import os
 from dataclasses import dataclass, field
 
+import torch
+
+# Detect hardware capabilities once at import time
+_has_cuda = torch.cuda.is_available()
+_has_mps = torch.backends.mps.is_available()
+
+
+def _default_quantize() -> str:
+    """Default to 4-bit quantization only when CUDA is available."""
+    return "true" if _has_cuda else "false"
+
+
+def _default_device_map() -> str:
+    """Pick a sensible device map based on available hardware."""
+    if _has_cuda:
+        return "auto"
+    if _has_mps:
+        return "mps"
+    return "cpu"
+
 
 @dataclass
 class ModelConfig:
@@ -18,11 +38,12 @@ class ModelConfig:
     # Where to cache downloaded model weights
     cache_dir: str = os.getenv("LSE_CACHE_DIR", os.path.expanduser("~/.cache/huggingface"))
 
-    # Device map passed to from_pretrained. "auto" lets accelerate decide.
-    device_map: str = os.getenv("LSE_DEVICE_MAP", "auto")
+    # Device map passed to from_pretrained. "auto" uses accelerate on CUDA,
+    # "mps" for Apple Silicon, "cpu" as fallback.
+    device_map: str = os.getenv("LSE_DEVICE_MAP", _default_device_map())
 
-    # Enable 4-bit quantization via bitsandbytes to fit on smaller GPUs.
-    quantize_4bit: bool = os.getenv("LSE_QUANTIZE_4BIT", "true").lower() == "true"
+    # Enable 4-bit quantization via bitsandbytes (CUDA only).
+    quantize_4bit: bool = os.getenv("LSE_QUANTIZE_4BIT", _default_quantize()).lower() == "true"
 
     # torch dtype string: "float16", "bfloat16", or "float32"
     dtype: str = os.getenv("LSE_DTYPE", "bfloat16")
