@@ -218,7 +218,68 @@ export function findNeighbors(
 }
 
 // ---------------------------------------------------------------------------
-// Load dataset: try backend, fall back to mock
+// Pre-computed embeddings (static file)
+// ---------------------------------------------------------------------------
+
+interface PrecomputedData {
+  words: string[];
+  categories: Record<string, string>;
+  raw_embeddings: number[][];
+  reductions: {
+    umap: { points: number[][]; params: Record<string, unknown> };
+    pca: { points: number[][]; params: Record<string, unknown> };
+  };
+  model: string;
+  generated_at: string;
+}
+
+// Cache the static file so switching reductions is instant
+let _precomputed: PrecomputedData | null = null;
+
+async function fetchPrecomputed(
+  onProgress?: ProgressCallback,
+): Promise<PrecomputedData | null> {
+  if (_precomputed) return _precomputed;
+
+  try {
+    onProgress?.(10, "Loading pre-computed embeddings...");
+    const res = await fetch("/embeddings.json");
+    if (!res.ok) return null;
+
+    onProgress?.(50, "Parsing embeddings...");
+    const data = (await res.json()) as PrecomputedData;
+
+    // Basic validation
+    if (!data.words || !data.reductions?.umap || !data.reductions?.pca) {
+      console.warn("Pre-computed embeddings file is malformed");
+      return null;
+    }
+
+    onProgress?.(90, "Ready");
+    _precomputed = data;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function precomputedToDataset(
+  data: PrecomputedData,
+  method: ReductionMethod,
+): DataSet {
+  const reduction = data.reductions[method];
+  const points: WordPoint[] = data.words.map((word, i) => ({
+    word,
+    category: data.categories[word] ?? "unknown",
+    embedding: data.raw_embeddings[i],
+    position: reduction.points[i] as [number, number, number],
+  }));
+  const categories = [...new Set(Object.values(data.categories))];
+  return { points, categories };
+}
+
+// ---------------------------------------------------------------------------
+// Load dataset: try static file, then backend API, fall back to mock
 // ---------------------------------------------------------------------------
 
 export type ProgressCallback = (percent: number, message: string) => void;
@@ -229,11 +290,18 @@ export async function loadDataset(
   method: ReductionMethod,
   onProgress?: ProgressCallback,
 ): Promise<{ dataset: DataSet; mock: boolean }> {
+  // Try pre-computed static file first
+  const precomputed = await fetchPrecomputed(onProgress);
+  if (precomputed) {
+    onProgress?.(100, "Done");
+    return { dataset: precomputedToDataset(precomputed, method), mock: false };
+  }
+
+  // Fall back to live API
   const health = await checkHealth();
 
   if (health && health.model_loaded) {
     try {
-      // Fetch the curated word list; fall back to MOCK_CATEGORIES
       onProgress?.(0, "Fetching word list...");
       const fetched = await fetchWordList();
       let allWords: { word: string; category: string }[];
