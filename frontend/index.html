@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Latent Space Explorer</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="canvas-container"></div>
+
+    <div id="toolbar">
+      <div class="toolbar-group">
+        <label for="seed-input">Seed</label>
+        <input id="seed-input" type="text" placeholder="Type a word..." />
+        <button id="seed-go">Go</button>
+      </div>
+
+      <div class="toolbar-group">
+        <label for="search-input">Search</label>
+        <input id="search-input" type="text" placeholder="Filter words..." />
+      </div>
+
+      <div class="toolbar-group">
+        <label>Reduction</label>
+        <select id="reduction-method">
+          <option value="umap">UMAP</option>
+          <option value="pca">PCA</option>
+        </select>
+      </div>
+
+      <div class="toolbar-group">
+        <label>Neighbors</label>
+        <input id="neighbor-count" type="number" value="10" min="1" max="50" />
+      </div>
+    </div>
+
+    <div id="axes-panel">
+      <h3>Semantic Axes</h3>
+      <div class="axis-row" data-axis="0">
+        <input class="axis-pole-a" type="text" placeholder="Pole A (e.g. king)" />
+        <span class="axis-arrow">&harr;</span>
+        <input class="axis-pole-b" type="text" placeholder="Pole B (e.g. queen)" />
+        <button class="axis-apply">Set</button>
+      </div>
+      <div class="axis-row" data-axis="1">
+        <input class="axis-pole-a" type="text" placeholder="Pole A" />
+        <span class="axis-arrow">&harr;</span>
+        <input class="axis-pole-b" type="text" placeholder="Pole B" />
+        <button class="axis-apply">Set</button>
+      </div>
+      <div class="axis-row" data-axis="2">
+        <input class="axis-pole-a" type="text" placeholder="Pole A" />
+        <span class="axis-arrow">&harr;</span>
+        <input class="axis-pole-b" type="text" placeholder="Pole B" />
+        <button class="axis-apply">Set</button>
+      </div>
+      <button id="axes-reset">Reset to Reduction</button>
+    </div>
+
+    <div id="category-panel">
+      <h3>Categories</h3>
+      <div id="category-list"></div>
+    </div>
+
+    <div id="info-panel">
+      <h3>Info</h3>
+      <div id="info-content">
+        <p class="info-placeholder">Click a point to inspect</p>
+      </div>
+    </div>
+
+    <div id="status-bar">
+      <span id="status-text">Initializing...</span>
+      <span id="point-count"></span>
+    </div>
+
+    <div id="hover-label"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
