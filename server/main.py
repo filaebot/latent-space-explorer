@@ -51,8 +51,22 @@ latent_model = LatentModel(config.model)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load the model once at startup, release on shutdown."""
-    latent_model.load()
+    """Load the model in background at startup, release on shutdown."""
+    import asyncio
+    import threading
+
+    def _load_model():
+        try:
+            latent_model.load()
+        except Exception as e:
+            logger.error("Failed to load model: %s", e)
+
+    # Load model in background thread so the server starts immediately
+    # (frontend can serve in mock mode while model loads)
+    thread = threading.Thread(target=_load_model, daemon=True)
+    thread.start()
+    logger.info("Model loading in background thread...")
+
     yield
     logger.info("Shutting down")
 
