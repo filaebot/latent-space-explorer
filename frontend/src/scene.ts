@@ -33,7 +33,7 @@ export function createScene(container: HTMLElement): SceneContext {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.minDistance = 2;
+  controls.minDistance = 0.3;
   controls.maxDistance = 50;
 
   // Lighting

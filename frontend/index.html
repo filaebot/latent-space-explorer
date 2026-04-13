@@ -39,6 +39,18 @@
         <label>Neighbors</label>
         <input id="neighbor-count" type="number" value="10" min="1" max="50" />
       </div>
+
+      <div class="toolbar-group">
+        <label>Neighbor Mode</label>
+        <select id="neighbor-mode">
+          <option value="semantic">Semantic</option>
+          <option value="spatial">Spatial</option>
+        </select>
+      </div>
+
+      <div class="toolbar-group">
+        <button id="tour-btn">Tour</button>
+      </div>
     </div>
 
     <div id="layer-controls">
@@ -79,6 +91,11 @@
       <button id="axes-reset">Reset to Reduction</button>
     </div>
 
+    <div id="cluster-panel">
+      <h3>Clusters</h3>
+      <div id="cluster-list"></div>
+    </div>
+
     <div id="category-panel">
       <h3>Categories</h3>
       <div id="category-list"></div>
@@ -89,6 +106,27 @@
       <div id="info-content">
         <p class="info-placeholder">Click a point to inspect</p>
       </div>
+    </div>
+
+    <div id="focus-back-btn" style="display:none;">
+      <button id="focus-exit">Back</button>
+    </div>
+
+    <div id="tour-overlay" style="display:none;">
+      <div id="tour-controls">
+        <button id="tour-prev">Prev</button>
+        <button id="tour-play-pause">Pause</button>
+        <button id="tour-next">Next</button>
+        <button id="tour-stop">Stop</button>
+        <span id="tour-annotation"></span>
+        <span id="tour-step-counter"></span>
+      </div>
+    </div>
+
+    <div id="tour-menu" style="display:none;">
+      <h3>Guided Tours</h3>
+      <div id="tour-menu-list"></div>
+      <button id="tour-menu-close">Close</button>
     </div>
 
     <div id="status-bar">

@@ -53,6 +53,15 @@ export interface ScatterPlot {
     duration: number,
   ): Promise<void>;
 
+  /** Set per-point opacity overrides (for focus mode). Values 0-1. Pass null to reset. */
+  setOpacities(opacities: Float32Array | null): void;
+
+  /** Update base point size (for adaptive sizing). */
+  setPointSize(size: number): void;
+
+  /** Get current points array. */
+  getPoints(): WordPoint[];
+
   /** Dispose Three.js objects. */
   dispose(): void;
 }
@@ -287,6 +296,36 @@ export function createScatterPlot(ctx: SceneContext): ScatterPlot {
     });
   }
 
+  function setOpacities(opacities: Float32Array | null): void {
+    if (!pointsMesh) return;
+
+    const colors = geometry.getAttribute("color") as THREE.BufferAttribute;
+    const tmpColor = new THREE.Color();
+
+    if (!opacities) {
+      // Reset to normal colors
+      for (let i = 0; i < currentPoints.length; i++) {
+        tmpColor.setHex(categoryColor(currentPoints[i].category));
+        colors.setXYZ(i, tmpColor.r, tmpColor.g, tmpColor.b);
+      }
+    } else {
+      for (let i = 0; i < currentPoints.length; i++) {
+        tmpColor.setHex(categoryColor(currentPoints[i].category));
+        const a = opacities[i];
+        colors.setXYZ(i, tmpColor.r * a, tmpColor.g * a, tmpColor.b * a);
+      }
+    }
+    colors.needsUpdate = true;
+  }
+
+  function setPointSize(size: number): void {
+    material.size = size;
+  }
+
+  function getPoints(): WordPoint[] {
+    return currentPoints;
+  }
+
   function dispose(): void {
     if (pointsMesh) {
       ctx.scene.remove(pointsMesh);
@@ -309,6 +348,9 @@ export function createScatterPlot(ctx: SceneContext): ScatterPlot {
     raycast,
     categoryColor,
     animateToPositions,
+    setOpacities,
+    setPointSize,
+    getPoints,
     dispose,
   };
 }

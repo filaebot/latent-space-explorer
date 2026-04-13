@@ -218,6 +218,38 @@ export function findNeighbors(
     .slice(0, k);
 }
 
+/** Cosine similarity between two vectors. */
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom > 0 ? dot / denom : 0;
+}
+
+/** Find k nearest neighbors using cosine similarity on raw embeddings. */
+export function findSemanticNeighbors(
+  target: WordPoint,
+  all: WordPoint[],
+  k: number,
+): { point: WordPoint; distance: number }[] {
+  if (!target.embedding) {
+    return findNeighbors(target, all, k);
+  }
+
+  return all
+    .filter((p) => p.word !== target.word && p.embedding)
+    .map((p) => ({
+      point: p,
+      distance: cosineSimilarity(target.embedding!, p.embedding!),
+    }))
+    .sort((a, b) => b.distance - a.distance) // higher similarity = closer
+    .slice(0, k);
+}
+
 // ---------------------------------------------------------------------------
 // Pre-computed layer data (static file)
 // ---------------------------------------------------------------------------

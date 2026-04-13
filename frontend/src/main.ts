@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import { createScene, animate } from "./scene";
 import { createScatterPlot } from "./scatter";
 import {
@@ -5,7 +6,9 @@ import {
   setStatus,
   setPointCount,
   buildCategoryList,
+  buildClusterList,
   updateInfoPanel,
+  updateInfoPanelWithPath,
   showHoverLabel,
   hideHoverLabel,
   setSeedValue,
@@ -16,8 +19,20 @@ import {
   setLayerSliderValue,
   setLayerLabel,
   setPlayButton,
+  showFocusBack,
+  hideFocusBack,
+  buildTourMenu,
+  showTourOverlay,
+  hideTourOverlay,
+  updateTourStep,
 } from "./ui";
-import { loadDataset, findNeighbors, fetchLayerData } from "./api";
+import { loadDataset, findNeighbors, findSemanticNeighbors, fetchLayerData } from "./api";
+import { computeClusters, computeCategoryCentroids } from "./clusters";
+import type { Cluster } from "./clusters";
+import { createMinimap } from "./minimap";
+import { findSemanticPath, createPathRenderer } from "./path";
+import { generateTours, createTourState } from "./tour";
+import type { Tour, TourState } from "./tour";
 import type { AppState, LayerData, WordPoint } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -42,6 +57,18 @@ const state: AppState = {
   playSpeed: 1,
 };
 
+// Extended state for new features
+let neighborMode: "spatial" | "semantic" = "semantic";
+let clusters: Cluster[] = [];
+let categoryCentroids = new Map<string, [number, number, number]>();
+let focusMode = false;
+let focusSavedCamera: { pos: THREE.Vector3; target: THREE.Vector3 } | null = null;
+let pathStartPoint: WordPoint | null = null;
+let tours: Tour[] = [];
+const tourState: TourState = createTourState();
+let tourAutoTimer: ReturnType<typeof setTimeout> | null = null;
+let categorySprites: THREE.Group | null = null;
+
 // ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
@@ -50,6 +77,17 @@ async function main(): Promise<void> {
   const container = document.getElementById("canvas-container")!;
   const sceneCtx = createScene(container);
   const scatter = createScatterPlot(sceneCtx);
+  const pathRenderer = createPathRenderer(sceneCtx);
+
+  // Minimap setup
+  const minimap = createMinimap((worldX, worldZ) => {
+    // Fly camera to clicked minimap position
+    flyCamera(
+      new THREE.Vector3(worldX, 2, worldZ),
+      new THREE.Vector3(worldX, 0, worldZ),
+      600,
+    );
+  });
 
   // -----------------------------------------------------------------------
   // Helpers
@@ -59,6 +97,117 @@ async function main(): Promise<void> {
 
   function refreshVisibility(): void {
     scatter.updateVisibility(state.hiddenCategories, state.searchQuery);
+  }
+
+  /** Fly camera smoothly to a target position/lookAt. */
+  function flyCamera(
+    newPos: THREE.Vector3,
+    newTarget: THREE.Vector3,
+    duration: number,
+  ): Promise<void> {
+    const startPos = sceneCtx.camera.position.clone();
+    const startTarget = sceneCtx.controls.target.clone();
+    const startTime = performance.now();
+
+    return new Promise((resolve) => {
+      function step() {
+        const elapsed = performance.now() - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        const ease = 1 - (1 - t) * (1 - t); // ease-out
+
+        sceneCtx.camera.position.lerpVectors(startPos, newPos, ease);
+        sceneCtx.controls.target.lerpVectors(startTarget, newTarget, ease);
+        sceneCtx.controls.update();
+
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else {
+          resolve();
+        }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  /** Create text sprites for category centroids. */
+  function updateCategorySprites(): void {
+    if (categorySprites) {
+      sceneCtx.scene.remove(categorySprites);
+      categorySprites.traverse((child) => {
+        if (child instanceof THREE.Sprite) {
+          (child.material as THREE.SpriteMaterial).map?.dispose();
+          (child.material as THREE.Material).dispose();
+        }
+      });
+      categorySprites = null;
+    }
+
+    if (categoryCentroids.size === 0) return;
+
+    categorySprites = new THREE.Group();
+
+    for (const [cat, centroid] of categoryCentroids) {
+      const hex = scatter.categoryColor(cat);
+      const color = `#${hex.toString(16).padStart(6, "0")}`;
+
+      const canvas = document.createElement("canvas");
+      const size = 256;
+      canvas.width = size;
+      canvas.height = 64;
+      const ctx2 = canvas.getContext("2d")!;
+      ctx2.font = "bold 20px -apple-system, sans-serif";
+      ctx2.fillStyle = color;
+      ctx2.globalAlpha = 0.6;
+      ctx2.textAlign = "center";
+      ctx2.textBaseline = "middle";
+      ctx2.fillText(cat.toUpperCase(), size / 2, 32);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+      const mat = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        opacity: 0.5,
+        depthTest: false,
+      });
+      const sprite = new THREE.Sprite(mat);
+      sprite.position.set(centroid[0], centroid[1] + 0.6, centroid[2]);
+      sprite.scale.set(2.5, 0.65, 1);
+      categorySprites.add(sprite);
+    }
+
+    sceneCtx.scene.add(categorySprites);
+  }
+
+  /** Recompute clusters and update UI. */
+  function rebuildClusters(): void {
+    clusters = computeClusters(state.dataset.points);
+    categoryCentroids = computeCategoryCentroids(
+      state.dataset.points,
+      state.dataset.categories,
+    );
+    buildClusterList(clusters, scatter.categoryColor);
+    updateCategorySprites();
+
+    // Regenerate tours
+    tours = generateTours(
+      state.dataset.points,
+      state.dataset.categories,
+      clusters,
+      categoryCentroids,
+    );
+    buildTourMenu(tours);
+  }
+
+  /** Get neighbors using current mode. */
+  function getNeighbors(
+    point: WordPoint,
+    k: number,
+  ): { point: WordPoint; distance: number }[] {
+    if (neighborMode === "semantic" && point.embedding) {
+      return findSemanticNeighbors(point, state.dataset.points, k);
+    }
+    return findNeighbors(point, state.dataset.points, k);
   }
 
   /** Build a DataSet from layer data at a specific layer. */
@@ -89,7 +238,6 @@ async function main(): Promise<void> {
 
     const coords = layerEntry[state.reductionMethod];
 
-    // If points haven't been set yet (first load), use setPoints instead of animating
     if (state.dataset.points.length === 0) {
       const ds = layerDataToDataset(state.layerData, layer, state.reductionMethod);
       state.dataset = ds;
@@ -103,20 +251,18 @@ async function main(): Promise<void> {
     const targets = coords as [number, number, number][];
     await scatter.animateToPositions(targets, 300);
 
-    // Sync logical dataset positions after animation
     for (let i = 0; i < state.dataset.points.length; i++) {
       if (targets[i]) {
         state.dataset.points[i].position = [...targets[i]] as [number, number, number];
       }
     }
 
-    // Re-apply seed highlights with new positions
     if (state.selectedPoint) {
-      const nbs = findNeighbors(state.selectedPoint, state.dataset.points, state.neighborCount);
+      const nbs = getNeighbors(state.selectedPoint, state.neighborCount);
       state.neighbors = nbs.map((n) => n.point);
       scatter.highlightSeed(state.selectedPoint, state.neighbors);
       scatter.selectPoint(state.selectedPoint);
-      updateInfoPanel(state.selectedPoint, nbs, scatter.categoryColor);
+      updateInfoPanel(state.selectedPoint, nbs, scatter.categoryColor, neighborMode);
     }
   }
 
@@ -146,7 +292,6 @@ async function main(): Promise<void> {
 
     goToLayer(next).then(() => {
       if (!state.isPlaying) return;
-      // Wait proportional to speed before advancing again
       const delay = Math.max(50, 400 / state.playSpeed);
       playTimer = setTimeout(advanceLayer, delay);
     });
@@ -165,14 +310,134 @@ async function main(): Promise<void> {
     state.seed = word;
     state.selectedPoint = point;
 
-    const nbs = findNeighbors(point, state.dataset.points, state.neighborCount);
+    // Clear path state on new seed
+    pathStartPoint = null;
+    pathRenderer.clear();
+
+    const nbs = getNeighbors(point, state.neighborCount);
     state.neighbors = nbs.map((n) => n.point);
 
     scatter.highlightSeed(point, state.neighbors);
     scatter.selectPoint(point);
-    updateInfoPanel(point, nbs, scatter.categoryColor);
+    updateInfoPanel(point, nbs, scatter.categoryColor, neighborMode);
     setSeedValue(word);
     setStatus(`Seed: ${word} (${nbs.length} neighbors)`);
+  }
+
+  // -----------------------------------------------------------------------
+  // Focus mode
+  // -----------------------------------------------------------------------
+
+  function enterFocusMode(point: WordPoint): void {
+    if (focusMode) return;
+
+    focusMode = true;
+    focusSavedCamera = {
+      pos: sceneCtx.camera.position.clone(),
+      target: sceneCtx.controls.target.clone(),
+    };
+
+    // Apply seed
+    applySeed(point.word);
+
+    // Fade non-relevant points
+    const relevantWords = new Set<string>([point.word, ...state.neighbors.map((n) => n.word)]);
+    const opacities = new Float32Array(state.dataset.points.length);
+    for (let i = 0; i < state.dataset.points.length; i++) {
+      opacities[i] = relevantWords.has(state.dataset.points[i].word) ? 1.0 : 0.05;
+    }
+    scatter.setOpacities(opacities);
+
+    // Fly close
+    const target = new THREE.Vector3(...point.position);
+    const offset = new THREE.Vector3(0.8, 0.5, 0.8);
+    flyCamera(target.clone().add(offset), target, 800);
+
+    showFocusBack();
+    setStatus(`Focus: ${point.word}`);
+  }
+
+  function exitFocusMode(): void {
+    if (!focusMode) return;
+    focusMode = false;
+
+    scatter.setOpacities(null);
+
+    if (focusSavedCamera) {
+      flyCamera(focusSavedCamera.pos, focusSavedCamera.target, 600);
+      focusSavedCamera = null;
+    }
+
+    hideFocusBack();
+    refreshVisibility();
+    setStatus("Ready");
+  }
+
+  // -----------------------------------------------------------------------
+  // Tour control
+  // -----------------------------------------------------------------------
+
+  function executeTourStep(): void {
+    if (!tourState.tour) return;
+    const step = tourState.tour.steps[tourState.stepIndex];
+
+    // Fly camera
+    const target = new THREE.Vector3(...step.target);
+    const offset = new THREE.Vector3(2, 1.5, 2);
+    flyCamera(target.clone().add(offset), target, 1000);
+
+    // Highlight words
+    if (step.neighborSeed) {
+      applySeed(step.neighborSeed);
+    } else if (step.highlightWords.length > 0) {
+      // Highlight these specific words
+      const highlighted = state.dataset.points.filter((p) =>
+        step.highlightWords.includes(p.word),
+      );
+      if (highlighted.length > 0) {
+        scatter.highlightSeed(highlighted[0], highlighted.slice(1));
+      }
+    }
+
+    updateTourStep(tourState);
+    setStatus(`Tour: ${step.annotation}`);
+  }
+
+  function startTour(tourIndex: number): void {
+    stopTour();
+    tourState.tour = tours[tourIndex];
+    tourState.stepIndex = 0;
+    tourState.isPlaying = true;
+
+    showTourOverlay();
+    executeTourStep();
+    scheduleTourAdvance();
+  }
+
+  function stopTour(): void {
+    tourState.tour = null;
+    tourState.isPlaying = false;
+    if (tourAutoTimer) {
+      clearTimeout(tourAutoTimer);
+      tourAutoTimer = null;
+    }
+    hideTourOverlay();
+  }
+
+  function scheduleTourAdvance(): void {
+    if (!tourState.isPlaying || !tourState.tour) return;
+    if (tourAutoTimer) clearTimeout(tourAutoTimer);
+    tourAutoTimer = setTimeout(() => {
+      if (!tourState.tour || !tourState.isPlaying) return;
+      if (tourState.stepIndex < tourState.tour.steps.length - 1) {
+        tourState.stepIndex++;
+        executeTourStep();
+        scheduleTourAdvance();
+      } else {
+        tourState.isPlaying = false;
+        updateTourStep(tourState);
+      }
+    }, tourState.autoAdvanceDelay);
   }
 
   // -----------------------------------------------------------------------
@@ -192,7 +457,6 @@ async function main(): Promise<void> {
       state.reductionMethod = method;
 
       if (state.mode === "layers" && state.layerData) {
-        // In layers mode, switch reduction for the current layer with animation
         setStatus(`Switching to ${method.toUpperCase()}...`);
         const layerEntry = state.layerData.layers[String(state.currentLayer)];
         if (layerEntry) {
@@ -219,6 +483,8 @@ async function main(): Promise<void> {
       buildCategoryList(dataset.categories, scatter.categoryColor, state.hiddenCategories);
       setPointCount(dataset.points.length);
       refreshVisibility();
+      rebuildClusters();
+      minimap.setPoints(dataset.points, scatter.categoryColor);
       setStatus(mock ? `Mock data (${method.toUpperCase()})` : `${method.toUpperCase()} reduction`);
     },
 
@@ -239,8 +505,6 @@ async function main(): Promise<void> {
     },
 
     onAxisSet: (_idx, _poleA, _poleB) => {
-      // Semantic axes require embedding-space projection via the backend.
-      // For now, store the axis definition and show a status message.
       setStatus("Semantic axes require a running backend");
     },
 
@@ -267,7 +531,6 @@ async function main(): Promise<void> {
         state.layerData = data;
         setLayerSliderMax(data.num_layers - 1);
 
-        // Build initial dataset from layer 0
         const ds = layerDataToDataset(data, 0, state.reductionMethod);
         state.dataset = ds;
         state.currentLayer = 0;
@@ -281,9 +544,10 @@ async function main(): Promise<void> {
         setLayerSliderValue(0);
         setLayerLabel(0, data.num_layers);
         refreshVisibility();
+        rebuildClusters();
+        minimap.setPoints(ds.points, scatter.categoryColor);
         setStatus(`Layers mode: ${data.model} (${data.num_layers} layers)`);
       } else {
-        // Switch back to embeddings mode
         state.layerData = null;
         setStatus("Loading dataset...");
         const { dataset, mock } = await loadDataset(state.reductionMethod, (pct, msg) => {
@@ -300,6 +564,8 @@ async function main(): Promise<void> {
         buildCategoryList(dataset.categories, scatter.categoryColor, state.hiddenCategories);
         setPointCount(dataset.points.length);
         refreshVisibility();
+        rebuildClusters();
+        minimap.setPoints(dataset.points, scatter.categoryColor);
         setStatus(mock ? "Mock data mode (backend unavailable)" : "Ready");
       }
     },
@@ -319,6 +585,66 @@ async function main(): Promise<void> {
 
     onSpeedChange: (speed) => {
       state.playSpeed = speed;
+    },
+
+    onNeighborMode: (mode) => {
+      neighborMode = mode;
+      if (state.selectedPoint) {
+        applySeed(state.selectedPoint.word);
+      }
+    },
+
+    onClusterClick: (clusterId) => {
+      const cluster = clusters.find((c) => c.id === clusterId);
+      if (!cluster) return;
+
+      const target = new THREE.Vector3(...cluster.centroid);
+      const offset = new THREE.Vector3(3, 2, 3);
+      flyCamera(target.clone().add(offset), target, 800);
+      setStatus(`Cluster: ${cluster.label} (${cluster.points.length} words)`);
+    },
+
+    onTourSelect: (tourIndex) => {
+      startTour(tourIndex);
+    },
+
+    onTourControl: (action) => {
+      if (!tourState.tour) return;
+
+      switch (action) {
+        case "prev":
+          if (tourState.stepIndex > 0) {
+            tourState.stepIndex--;
+            executeTourStep();
+            if (tourState.isPlaying) scheduleTourAdvance();
+          }
+          break;
+        case "next":
+          if (tourState.stepIndex < tourState.tour.steps.length - 1) {
+            tourState.stepIndex++;
+            executeTourStep();
+            if (tourState.isPlaying) scheduleTourAdvance();
+          }
+          break;
+        case "play-pause":
+          tourState.isPlaying = !tourState.isPlaying;
+          updateTourStep(tourState);
+          if (tourState.isPlaying) {
+            scheduleTourAdvance();
+          } else if (tourAutoTimer) {
+            clearTimeout(tourAutoTimer);
+            tourAutoTimer = null;
+          }
+          break;
+        case "stop":
+          stopTour();
+          setStatus("Ready");
+          break;
+      }
+    },
+
+    onFocusExit: () => {
+      exitFocusMode();
     },
   });
 
@@ -341,8 +667,49 @@ async function main(): Promise<void> {
 
   container.addEventListener("click", (e) => {
     const hit = scatter.raycast(e, container);
+    if (!hit) return;
+
+    // Shift+click: second point for path tracing
+    if (e.shiftKey && state.selectedPoint) {
+      pathStartPoint = state.selectedPoint;
+      const pathResult = findSemanticPath(
+        pathStartPoint,
+        hit,
+        state.dataset.points,
+      );
+      if (pathResult) {
+        pathRenderer.drawPath(pathResult, scatter.categoryColor);
+        updateInfoPanelWithPath(pathResult.words, scatter.categoryColor);
+        setStatus(
+          `Path: ${pathStartPoint.word} -> ${hit.word} (${pathResult.words.length} steps)`,
+        );
+      } else {
+        setStatus("Could not find semantic path (embeddings may be missing)");
+      }
+      return;
+    }
+
+    applySeed(hit.word);
+  });
+
+  // Double-click for focus mode
+  container.addEventListener("dblclick", (e) => {
+    const hit = scatter.raycast(e, container);
     if (hit) {
-      applySeed(hit.word);
+      enterFocusMode(hit);
+    }
+  });
+
+  // Escape to exit focus mode
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (focusMode) {
+        exitFocusMode();
+      }
+      if (tourState.tour) {
+        stopTour();
+        setStatus("Ready");
+      }
     }
   });
 
@@ -351,8 +718,16 @@ async function main(): Promise<void> {
   // -----------------------------------------------------------------------
 
   animate(sceneCtx, () => {
-    // Keep selection ring facing camera
-    // (handled implicitly since we rebuild on select)
+    // Adaptive point sizing based on camera distance
+    const camDist = sceneCtx.camera.position.length();
+    const baseSize = 0.18;
+    const scale = Math.max(0.04, Math.min(baseSize, baseSize * (camDist / 12)));
+    scatter.setPointSize(scale);
+
+    // Update minimap every frame
+    minimap.update(sceneCtx.camera);
+
+    // Keep selection ring facing camera (handled implicitly)
   });
 
   // -----------------------------------------------------------------------
@@ -367,10 +742,24 @@ async function main(): Promise<void> {
   state.dataset = dataset;
   state.usingMockData = mock;
 
+  // Default to semantic if embeddings are available
+  const hasEmbeddings = dataset.points.some((p) => p.embedding && p.embedding.length > 0);
+  if (hasEmbeddings) {
+    neighborMode = "semantic";
+  } else {
+    neighborMode = "spatial";
+  }
+
   scatter.setPoints(dataset.points, dataset.categories);
   buildCategoryList(dataset.categories, scatter.categoryColor, state.hiddenCategories);
   setPointCount(dataset.points.length);
   refreshVisibility();
+
+  // Compute clusters and category centroids
+  rebuildClusters();
+
+  // Setup minimap
+  minimap.setPoints(dataset.points, scatter.categoryColor);
 
   if (mock) {
     setStatus("Mock data mode (backend unavailable)");
