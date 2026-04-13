@@ -257,6 +257,10 @@ async function main(): Promise<void> {
       }
     }
 
+    // Refresh minimap and clusters with the new positions
+    minimap.setPoints(state.dataset.points, scatter.categoryColor);
+    rebuildClusters();
+
     if (state.selectedPoint) {
       const nbs = getNeighbors(state.selectedPoint, state.neighborCount);
       state.neighbors = nbs.map((n) => n.point);
